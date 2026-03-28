@@ -1,0 +1,567 @@
+{
+    "id_base"               : "zongben",
+
+    "building_file"         : "zongben.epJSON",
+
+    "weather_specification" : {
+        "weather_files" : ["CHN_Beijing.Beijing.545110_IWEC.epw"],
+		
+        "keys"          : ["mixed"]
+    },
+
+    "config_params"          : null,
+
+    "variation"             : [1.0, 0.0, 0.001],
+
+    "max_ep_data_store_num" : 10,
+    
+    "time_variables"        : ["month", "day_of_month", "hour"],
+
+    "variables"             : {
+
+        "Electric Equipment Electricity Energy"                                            : {
+            "variable_names" : "Electric_Equipment_Electricity_Energy",
+            "keys"          : [
+				   				"HALL-1-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-4 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-5 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-6 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-7 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-8 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-9 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-10 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-11 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-12 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-1-13 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-2-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-2-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-2-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-3-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-3-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-3-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-4-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-4-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-4-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"HALL-4-4 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"P1-1-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P1-1-DINING 1 OFFICE DINING ELEC EQUIP",
+								"P1-1-OFFICE 1 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 ELECTRIC EQUIPMENT 1",
+								"P1-1-OFFICE 2 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 ELECTRIC EQUIPMENT 1",
+								"P1-10-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 ELECTRIC EQUIPMENT",
+								"P1-11-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P1-11-COMMERCE 2 RETAIL RETAIL ELEC EQUIP",
+								"P1-11-OFFICE 1 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 ELECTRIC EQUIPMENT 1",
+								"P1-11-OFFICE 2 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 ELECTRIC EQUIPMENT 1",
+								"P1-2-BREAKROOM 1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 ELECTRIC EQUIPMENT",
+								"P1-2-DINING 1 OFFICE DINING ELEC EQUIP",
+								"P1-2-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 ELECTRIC EQUIPMENT",
+								"P1-3-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P1-4-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P1-4-DINING 1 OFFICE DINING ELEC EQUIP",
+								"P1-5-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P1-6-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P1-7-DINING 1 OFFICE DINING ELEC EQUIP",
+								"P1-7-OFFICE 1 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 ELECTRIC EQUIPMENT 1",
+								"P1-8-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 ELECTRIC EQUIPMENT",
+								"P1-9-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P2-1-COMMERCE 2 RETAIL RETAIL ELEC EQUIP",
+								"P2-1-COMMERCE 3 RETAIL RETAIL ELEC EQUIP",
+								"P2-2-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 ELECTRIC EQUIPMENT",
+								"P3-1-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P3-1-DINING 1 OFFICE DINING ELEC EQUIP",
+								"P3-2-DINING 1 OFFICE DINING ELEC EQUIP",
+								"P3-2-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 ELECTRIC EQUIPMENT",
+								"P4-1-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P4-2-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P4-2-COMMERCE 2 RETAIL RETAIL ELEC EQUIP",
+								"P4-3-COMMERCE 1 RETAIL RETAIL ELEC EQUIP",
+								"P4-3-COMMERCE 2 RETAIL RETAIL ELEC EQUIP"]
+        },
+
+
+
+
+		  "Lights Electricity Energy"                                            : {
+            "variable_names" : "Lights_Electricity_Energy",
+            "keys"          : [
+				   				"HALL-1-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-4 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-5 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-6 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-7 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-8 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-9 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-10 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-11 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-12 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-1-13 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-2-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-2-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-2-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-3-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-3-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-3-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-4-1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-4-2 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-4-3 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"HALL-4-4 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"P1-1-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P1-1-DINING 1 OFFICE DINING LIGHTS",
+								"P1-1-OFFICE 1 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 LIGHTS 1",
+								"P1-1-OFFICE 2 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 LIGHTS 1",
+								"P1-10-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 LIGHTS",
+								"P1-11-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P1-11-COMMERCE 2 RETAIL RETAIL LIGHTS",
+								"P1-11-OFFICE 1 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 LIGHTS 1",
+								"P1-11-OFFICE 2 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 LIGHTS 1",
+								"P1-2-BREAKROOM 1 189.1-2009 - OFFICE - WHOLEBUILDING - LG OFFICE - CZ4-8 LIGHTS",
+								"P1-2-DINING 1 OFFICE DINING LIGHTS",
+								"P1-2-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 LIGHTS",
+								"P1-3-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P1-4-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P1-4-DINING 1 OFFICE DINING LIGHTS",
+								"P1-5-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P1-6-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P1-7-DINING 1 OFFICE DINING LIGHTS",
+								"P1-7-OFFICE 1 189.1-2009 - OFFICE - CLOSEDOFFICE - CZ4-8 LIGHTS 1",
+								"P1-8-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 LIGHTS",
+								"P1-9-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P2-1-COMMERCE 2 RETAIL RETAIL LIGHTS",
+								"P2-1-COMMERCE 3 RETAIL RETAIL LIGHTS",
+								"P2-2-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 LIGHTS",
+								"P3-1-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P3-1-DINING 1 OFFICE DINING LIGHTS",
+								"P3-2-DINING 1 OFFICE DINING LIGHTS",
+								"P3-2-RESTROOM 1 189.1-2009 - OFFICE - RESTROOM - CZ4-8 LIGHTS",
+								"P4-1-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P4-2-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P4-2-COMMERCE 2 RETAIL RETAIL LIGHTS",
+								"P4-3-COMMERCE 1 RETAIL RETAIL LIGHTS",
+								"P4-3-COMMERCE 2 RETAIL RETAIL LIGHTS"]
+        },
+
+		    "Zone Air Temperature"                                            : {
+            "variable_names" : "air_temperature",
+            "keys"          : ["THERMAL ZONE: HALL-1-1",
+								"THERMAL ZONE: HALL-1-10",
+								"THERMAL ZONE: HALL-1-11",
+								"THERMAL ZONE: HALL-1-12",
+								"THERMAL ZONE: HALL-1-13",
+								"THERMAL ZONE: HALL-1-2",
+								"THERMAL ZONE: HALL-1-3",
+								"THERMAL ZONE: HALL-1-4",
+								"THERMAL ZONE: HALL-1-5",
+								"THERMAL ZONE: HALL-1-6",
+								"THERMAL ZONE: HALL-1-7",
+								"THERMAL ZONE: HALL-1-8",
+								"THERMAL ZONE: HALL-1-9",
+								"THERMAL ZONE: HALL-2-1",
+								"THERMAL ZONE: HALL-2-2",
+								"THERMAL ZONE: HALL-2-3",
+								"THERMAL ZONE: HALL-3-1",
+								"THERMAL ZONE: HALL-3-2",
+								"THERMAL ZONE: HALL-3-3",
+								"THERMAL ZONE: HALL-4-1",
+								"THERMAL ZONE: HALL-4-2",
+								"THERMAL ZONE: HALL-4-3",
+								"THERMAL ZONE: HALL-4-4",
+								"THERMAL ZONE: P1-1-COMMERCE 1",
+								"THERMAL ZONE: P1-1-DINING 1",
+								"THERMAL ZONE: P1-1-OFFICE 1",
+								"THERMAL ZONE: P1-1-OFFICE 2",
+								"THERMAL ZONE: P1-10-RESTROOM 1",
+								"THERMAL ZONE: P1-11-COMMERCE 1",
+								"THERMAL ZONE: P1-11-COMMERCE 2",
+								"THERMAL ZONE: P1-11-OFFICE 1",
+								"THERMAL ZONE: P1-11-OFFICE 2",
+								"THERMAL ZONE: P1-2-BREAKROOM 1",
+								"THERMAL ZONE: P1-2-DINING 1",
+								"THERMAL ZONE: P1-2-RESTROOM 1",
+								"THERMAL ZONE: P1-3-COMMERCE 1",
+								"THERMAL ZONE: P1-4-COMMERCE 1",
+								"THERMAL ZONE: P1-4-DINING 1",
+								"THERMAL ZONE: P1-5-COMMERCE 1",
+								"THERMAL ZONE: P1-6-COMMERCE 1",
+								"THERMAL ZONE: P1-7-DINING 1",
+								"THERMAL ZONE: P1-7-OFFICE 1",
+								"THERMAL ZONE: P1-8-RESTROOM 1",
+								"THERMAL ZONE: P1-9-COMMERCE 1",
+								"THERMAL ZONE: P2-1-COMMERCE 2",
+								"THERMAL ZONE: P2-1-COMMERCE 3",
+								"THERMAL ZONE: P2-2-RESTROOM 1",
+								"THERMAL ZONE: P3-1-COMMERCE 1",
+								"THERMAL ZONE: P3-1-DINING 1",
+								"THERMAL ZONE: P3-2-DINING 1",
+								"THERMAL ZONE: P3-2-RESTROOM 1",
+								"THERMAL ZONE: P4-1-COMMERCE 1",
+								"THERMAL ZONE: P4-2-COMMERCE 1",
+								"THERMAL ZONE: P4-2-COMMERCE 2",
+								"THERMAL ZONE: P4-3-COMMERCE 1",
+								"THERMAL ZONE: P4-3-COMMERCE 2"]
+        }
+
+
+},
+
+	"meters"                : {
+		"Electricity:HVAC" : "total_electricity_HVAC"
+	},
+    "actuators"             : {
+		"DIFFUSER"					: {
+			"variable_name" : "flow_rate",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 1"					: {
+			"variable_name" : "flow_rate1",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 2"					: {
+			"variable_name" : "flow_rate2",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 3"					: {
+			"variable_name" : "flow_rate3",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 4"					: {
+			"variable_name" : "flow_rate4",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 5"					: {
+			"variable_name" : "flow_rate5",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 6"					: {
+			"variable_name" : "flow_rate6",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 7"					: {
+			"variable_name" : "flow_rate7",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 8"					: {
+			"variable_name" : "flow_rate8",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 9"					: {
+			"variable_name" : "flow_rate9",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 10"					: {
+			"variable_name" : "flow_rate10",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 11"					: {
+			"variable_name" : "flow_rate11",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 12"					: {
+			"variable_name" : "flow_rate12",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 13"					: {
+			"variable_name" : "flow_rate13",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 14"					: {
+			"variable_name" : "flow_rate14",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 15"					: {
+			"variable_name" : "flow_rate15",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 16"					: {
+			"variable_name" : "flow_rate16",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 17"					: {
+			"variable_name" : "flow_rate17",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 18"					: {
+			"variable_name" : "flow_rate18",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 19"					: {
+			"variable_name" : "flow_rate19",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 20"					: {
+			"variable_name" : "flow_rate20",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 21"					: {
+			"variable_name" : "flow_rate21",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 22"					: {
+			"variable_name" : "flow_rate22",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 23"					: {
+			"variable_name" : "flow_rate23",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 24"					: {
+			"variable_name" : "flow_rate24",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 25"					: {
+			"variable_name" : "flow_rate25",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 26"					: {
+			"variable_name" : "flow_rate26",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 27"					: {
+			"variable_name" : "flow_rate27",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 28"					: {
+			"variable_name" : "flow_rate28",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 29"					: {
+			"variable_name" : "flow_rate29",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 30"					: {
+			"variable_name" : "flow_rate30",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 31"					: {
+			"variable_name" : "flow_rate31",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 32"					: {
+			"variable_name" : "flow_rate32",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 33"					: {
+			"variable_name" : "flow_rate33",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 34"					: {
+			"variable_name" : "flow_rate34",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 35"					: {
+			"variable_name" : "flow_rate35",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 36"					: {
+			"variable_name" : "flow_rate36",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 37"					: {
+			"variable_name" : "flow_rate37",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 38"					: {
+			"variable_name" : "flow_rate38",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 39"					: {
+			"variable_name" : "flow_rate39",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 40"					: {
+			"variable_name" : "flow_rate40",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 41"					: {
+			"variable_name" : "flow_rate41",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 42"					: {
+			"variable_name" : "flow_rate42",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 43"					: {
+			"variable_name" : "flow_rate43",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 44"					: {
+			"variable_name" : "flow_rate44",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 45"					: {
+			"variable_name" : "flow_rate45",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 46"					: {
+			"variable_name" : "flow_rate46",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 47"					: {
+			"variable_name" : "flow_rate47",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 48"					: {
+			"variable_name" : "flow_rate48",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 49"					: {
+			"variable_name" : "flow_rate49",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 50"					: {
+			"variable_name" : "flow_rate50",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 51"					: {
+			"variable_name" : "flow_rate51",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 52"					: {
+			"variable_name" : "flow_rate52",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 53"					: {
+			"variable_name" : "flow_rate53",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 54"					: {
+			"variable_name" : "flow_rate54",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		},
+        "DIFFUSER 55"					: {
+			"variable_name" : "flow_rate55",
+			"element_type"	: "AirTerminal:SingleDuct:ConstantVolume:NoReheat",
+			"value_type"	: "Mass Flow Rate"
+		}
+    },
+
+    "action_space"          : "gym.spaces.Box(low=np.array([12,23], dtype=np.float32), high=np.array([23,30], dtype=np.float32), dtype=np.float32)",
+    
+	"reward"                : "LinearReward",
+
+    "reward_kwargs"         : {
+        "temperature_variables": [	"thermal_zone:_hall-1-1_air_temperature",
+									"thermal_zone:_hall-1-10_air_temperature",
+									"thermal_zone:_hall-1-11_air_temperature",
+									"thermal_zone:_hall-1-12_air_temperature",
+									"thermal_zone:_hall-1-13_air_temperature",
+									"thermal_zone:_hall-1-2_air_temperature",
+									"thermal_zone:_hall-1-3_air_temperature",
+									"thermal_zone:_hall-1-4_air_temperature",
+									"thermal_zone:_hall-1-5_air_temperature",
+									"thermal_zone:_hall-1-6_air_temperature",
+									"thermal_zone:_hall-1-7_air_temperature",
+									"thermal_zone:_hall-1-8_air_temperature",
+									"thermal_zone:_hall-1-9_air_temperature",
+									"thermal_zone:_hall-2-1_air_temperature",
+									"thermal_zone:_hall-2-2_air_temperature",
+									"thermal_zone:_hall-2-3_air_temperature",
+									"thermal_zone:_hall-3-1_air_temperature",
+									"thermal_zone:_hall-3-2_air_temperature",
+									"thermal_zone:_hall-3-3_air_temperature",
+									"thermal_zone:_hall-4-1_air_temperature",
+									"thermal_zone:_hall-4-2_air_temperature",
+									"thermal_zone:_hall-4-3_air_temperature",
+									"thermal_zone:_hall-4-4_air_temperature",
+									"thermal_zone:_p1-1-commerce_1_air_temperature",
+									"thermal_zone:_p1-1-dining_1_air_temperature",
+									"thermal_zone:_p1-1-office_1_air_temperature",
+									"thermal_zone:_p1-1-office_2_air_temperature",
+									"thermal_zone:_p1-10-restroom_1_air_temperature",
+									"thermal_zone:_p1-11-commerce_1_air_temperature",
+									"thermal_zone:_p1-11-commerce_2_air_temperature",
+									"thermal_zone:_p1-11-office_1_air_temperature",
+									"thermal_zone:_p1-11-office_2_air_temperature",
+									"thermal_zone:_p1-2-breakroom_1_air_temperature",
+									"thermal_zone:_p1-2-dining_1_air_temperature",
+									"thermal_zone:_p1-2-restroom_1_air_temperature",
+									"thermal_zone:_p1-3-commerce_1_air_temperature",
+									"thermal_zone:_p1-4-commerce_1_air_temperature",
+									"thermal_zone:_p1-4-dining_1_air_temperature",
+									"thermal_zone:_p1-5-commerce_1_air_temperature",
+									"thermal_zone:_p1-6-commerce_1_air_temperature",
+									"thermal_zone:_p1-7-dining_1_air_temperature",
+									"thermal_zone:_p1-7-office_1_air_temperature",
+									"thermal_zone:_p1-8-restroom_1_air_temperature",
+									"thermal_zone:_p1-9-commerce_1_air_temperature",
+									"thermal_zone:_p2-1-commerce_2_air_temperature",
+									"thermal_zone:_p2-1-commerce_3_air_temperature",
+									"thermal_zone:_p2-2-restroom_1_air_temperature",
+									"thermal_zone:_p3-1-commerce_1_air_temperature",
+									"thermal_zone:_p3-1-dining_1_air_temperature",
+									"thermal_zone:_p3-2-dining_1_air_temperature",
+									"thermal_zone:_p3-2-restroom_1_air_temperature",
+									"thermal_zone:_p4-1-commerce_1_air_temperature",
+									"thermal_zone:_p4-2-commerce_1_air_temperature",
+									"thermal_zone:_p4-2-commerce_2_air_temperature",
+									"thermal_zone:_p4-3-commerce_1_air_temperature",
+									"thermal_zone:_p4-3-commerce_2_air_temperature"],
+		"energy_variables"          : ["total_electricity_HVAC"],
+        "range_comfort_winter": [20, 23.5],
+        "range_comfort_summer": [23, 26],
+        "summer_start"          : [6, 1],
+        "summer_final"          : [9, 30],
+        "energy_weight"         : 0.5,
+        "lambda_energy"         : 1e-4,
+        "lambda_temperature"    : 1
+    }
+
+}
