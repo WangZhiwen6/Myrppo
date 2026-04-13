@@ -123,7 +123,7 @@
 
     "action_space"          : "gym.spaces.Box(low=np.array([29.0, 30.0], dtype=np.float32), high=np.array([30.0,31.0], dtype=np.float32), dtype=np.float32)",
 
-    "reward"                : "ExpReward",
+    "reward"                : "ComfortConstrainedEnergyReward",
 
     "reward_kwargs"         : {
         "temperature_variables": [	"thermal_zone:_hall-1-1_air_temperature",
@@ -187,9 +187,12 @@
         "range_comfort_summer": [20, 24],
         "summer_start"          : [6, 1],
         "summer_final"          : [9, 30],
-        "energy_weight"         : 0.3,
+        "energy_weight"         : 1.0,
         "lambda_energy"         : 1e-8,
-        "lambda_temperature"    : 2
+        "lambda_temperature"    : 2,
+        "comfort_violation_tolerance": 0.0,
+        "comfort_violation_power": 2.0,
+        "include_energy_when_violated": false
     }
 
 }

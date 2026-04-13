@@ -49,8 +49,14 @@ from myrppo.common.callbacks import CallbackList
 from myrppo.common.logger import HumanOutputFormat
 from myrppo.common.logger import Logger as SB3Logger
 from myrppo.ppo_recurrent import RecurrentPPO
+from myrppo.structured_actions import RateConstrainedSafetyProjectionWrapper
+from myrppo.structured_actions import TopologyActionProjectionWrapper
+from thermal_zone_graph import THERMAL_ZONE_EDGES
 
 num_zones = 56
+TOPOLOGY_SMOOTHING_LAMBDA = 0.10
+SAFETY_RATE_LIMIT_DEGC_PER_STEP = 0.20
+SAFETY_SMOOTHING_RHO = 0.05
 thermal_zones = (
     "THERMAL ZONE: HALL-1-1",
     "THERMAL ZONE: HALL-1-10",
@@ -159,6 +165,18 @@ def main() -> None:
 
     env = NormalizeObservation(env)
     env = NormalizeAction(env)
+    env = RateConstrainedSafetyProjectionWrapper(
+        env,
+        num_zones=num_zones,
+        rate_limit_degc_per_step=SAFETY_RATE_LIMIT_DEGC_PER_STEP,
+        smoothing_rho=SAFETY_SMOOTHING_RHO,
+    )
+    env = TopologyActionProjectionWrapper(
+        env,
+        zone_edges=THERMAL_ZONE_EDGES,
+        num_zones=num_zones,
+        smoothing_lambda=TOPOLOGY_SMOOTHING_LAMBDA,
+    )
     env = NormalizeReward(env)
     env = LoggerWrapper(env)
 

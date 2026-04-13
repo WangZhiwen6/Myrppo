@@ -470,7 +470,7 @@
 
     "action_space"          : "gym.spaces.Box(low=np.array([], dtype=np.float32), high=np.array([], dtype=np.float32), dtype=np.float32)",
     
-	"reward"                : "Myreward",
+	"reward"                : "LinearReward",
 
     "reward_kwargs"         : {
         "temperature_variables": [	"thermal_zone:_hall-1-1_air_temperature",
