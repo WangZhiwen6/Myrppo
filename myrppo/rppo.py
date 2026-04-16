@@ -51,11 +51,11 @@ from myrppo.common.logger import Logger as SB3Logger
 from myrppo.ppo_recurrent import RecurrentPPO
 from myrppo.structured_actions import RateConstrainedSafetyProjectionWrapper
 from myrppo.structured_actions import TopologyActionProjectionWrapper
-from thermal_zone_graph import THERMAL_ZONE_EDGES
+from myrppo.thermal_zone_graph import THERMAL_ZONE_EDGES
 
 num_zones = 56
 TOPOLOGY_SMOOTHING_LAMBDA = 0.10
-SAFETY_RATE_LIMIT_DEGC_PER_STEP = 0.20
+SAFETY_RATE_LIMIT_DEGC_PER_STEP = 0.50
 SAFETY_SMOOTHING_RHO = 0.05
 thermal_zones = (
     "THERMAL ZONE: HALL-1-1",
@@ -190,13 +190,13 @@ def main() -> None:
     )
 
     callbacks = []
-    logger = SB3Logger(
-        folder=None, output_formats=[HumanOutputFormat(sys.stdout, max_length=120)]
-    )
-    model.set_logger(logger)
+    # logger = SB3Logger(
+    #     folder=None, output_formats=[HumanOutputFormat(sys.stdout, max_length=120)]
+    # )
+    # model.set_logger(logger)
 
     timesteps = episodes * (env.get_wrapper_attr("timestep_per_episode") - 1)
-    callbacks.append(LoggerCallback())
+    # callbacks.append(LoggerCallback())
     callback = CallbackList(callbacks)
 
     model.learn(total_timesteps=timesteps, callback=callback, log_interval=100)
