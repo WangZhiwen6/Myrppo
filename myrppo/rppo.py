@@ -49,14 +49,10 @@ from myrppo.common.callbacks import CallbackList
 from myrppo.common.logger import HumanOutputFormat
 from myrppo.common.logger import Logger as SB3Logger
 from myrppo.ppo_recurrent import RecurrentPPO
-from myrppo.structured_actions import RateConstrainedSafetyProjectionWrapper
 from myrppo.structured_actions import TopologyActionProjectionWrapper
 from myrppo.thermal_zone_graph import THERMAL_ZONE_EDGES
 
 num_zones = 56
-TOPOLOGY_SMOOTHING_LAMBDA = 0.10
-SAFETY_RATE_LIMIT_DEGC_PER_STEP = 0.50
-SAFETY_SMOOTHING_RHO = 0.05
 thermal_zones = (
     "THERMAL ZONE: HALL-1-1",
     "THERMAL ZONE: HALL-1-10",
@@ -148,7 +144,7 @@ def main() -> None:
     }
 
     environment = "Eplus-1-mixed-continuous-stochastic-v1"
-    episodes = 200
+    episodes = 20
     experiment_date = datetime.today().strftime("%Y-%m-%d-%H_%M")
     experiment_name = f"RPPO-{environment}-episodes-{episodes}_{experiment_date}"
 
@@ -165,28 +161,32 @@ def main() -> None:
 
     env = NormalizeObservation(env)
     env = NormalizeAction(env)
-    env = RateConstrainedSafetyProjectionWrapper(
-        env,
-        num_zones=num_zones,
-        rate_limit_degc_per_step=SAFETY_RATE_LIMIT_DEGC_PER_STEP,
-        smoothing_rho=SAFETY_SMOOTHING_RHO,
-    )
+
+
+    # 拓扑约束
+    TOPOLOGY_SMOOTHING_LAMBDA = 0.20
     env = TopologyActionProjectionWrapper(
         env,
         zone_edges=THERMAL_ZONE_EDGES,
         num_zones=num_zones,
         smoothing_lambda=TOPOLOGY_SMOOTHING_LAMBDA,
     )
+
+
+
     env = NormalizeReward(env)
     env = LoggerWrapper(env)
 
     model = RecurrentPPO(
         "MlpLstmPolicy",
         env,
-        batch_size=64,
-        n_steps=1024,
+        batch_size=256,
+        n_steps=2048,
         verbose=1,
-        policy_kwargs=dict(lstm_hidden_size=256, n_lstm_layers=3),
+        policy_kwargs=dict(lstm_hidden_size=256, 
+                           n_lstm_layers=3,
+                           shared_lstm=False,
+                           enable_critic_lstm=True,),
     )
 
     callbacks = []
