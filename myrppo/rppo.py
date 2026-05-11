@@ -53,6 +53,8 @@ from myrppo.structured_actions import TopologyActionProjectionWrapper
 from myrppo.thermal_zone_graph import THERMAL_ZONE_EDGES
 
 num_zones = 56
+COMFORT_TEMPERATURE_MIN = 20.0
+COMFORT_TEMPERATURE_MAX = 24.0
 thermal_zones = (
     "THERMAL ZONE: HALL-1-1",
     "THERMAL ZONE: HALL-1-10",
@@ -131,6 +133,13 @@ def build_actuators() -> dict:
     return new_actuators
 
 
+def build_temperature_variables() -> list[str]:
+    return [
+        f"{zone.lower().replace(' ', '_')}_air_temperature"
+        for zone in thermal_zones
+    ]
+
+
 def main() -> None:
     new_action_space = gym.spaces.Box(
         low=np.array([18, 22] * 56, dtype=np.float32),
@@ -141,6 +150,15 @@ def main() -> None:
     new_meters = {
         "EnergyHeating": "DistrictHeating:Facility",
         "EnergyCooling": "DistrictCooling:Facility",
+    }
+    new_reward_kwargs = {
+        "temperature_variables": build_temperature_variables(),
+        "energy_variables": list(new_meters.keys()),
+        "range_comfort_winter": (COMFORT_TEMPERATURE_MIN, COMFORT_TEMPERATURE_MAX),
+        "range_comfort_summer": (COMFORT_TEMPERATURE_MIN, COMFORT_TEMPERATURE_MAX),
+        "energy_weight": 1.0,
+        "lambda_energy": 1e-6,
+        "lambda_temperature": 0.0,
     }
 
     environment = "Eplus-1-mixed-continuous-stochastic-v1"
@@ -157,6 +175,8 @@ def main() -> None:
         actuators=build_actuators(),
         meters=new_meters,
         action_space=new_action_space,
+        reward=LinearReward,
+        reward_kwargs=new_reward_kwargs,
     )
 
     env = NormalizeObservation(env)
@@ -183,6 +203,12 @@ def main() -> None:
         batch_size=256,
         n_steps=2048,
         verbose=1,
+        use_barrier=True,
+        barrier_lambda=0.01,
+        barrier_learning_rate=3e-4,
+        nu_learning_rate=3e-4,
+        barrier_temperature_min=COMFORT_TEMPERATURE_MIN,
+        barrier_temperature_max=COMFORT_TEMPERATURE_MAX,
         policy_kwargs=dict(lstm_hidden_size=256, 
                            n_lstm_layers=3,
                            shared_lstm=False,

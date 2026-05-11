@@ -11,6 +11,7 @@ class RNNStates(NamedTuple):
 
 class RecurrentRolloutBufferSamples(NamedTuple):
     observations: th.Tensor
+    next_observations: th.Tensor
     actions: th.Tensor
     old_values: th.Tensor
     old_log_prob: th.Tensor
@@ -23,6 +24,7 @@ class RecurrentRolloutBufferSamples(NamedTuple):
 
 class RecurrentDictRolloutBufferSamples(NamedTuple):
     observations: TensorDict
+    next_observations: TensorDict
     actions: th.Tensor
     old_values: th.Tensor
     old_log_prob: th.Tensor

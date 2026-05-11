@@ -1,9 +1,11 @@
 from copy import deepcopy
+from collections.abc import Sequence
 from typing import Any, ClassVar, Optional, TypeVar, Union
 
 import numpy as np
 import torch as th
 from gymnasium import spaces
+from myrppo.barrier import BarrierLosses, BarrierNet, compute_barrier_losses
 from myrppo.common.buffers import RolloutBuffer
 from myrppo.common.callbacks import BaseCallback
 from myrppo.common.on_policy_algorithm import OnPolicyAlgorithm
@@ -93,6 +95,15 @@ class RecurrentPPO(OnPolicyAlgorithm):
         stats_window_size: int = 100,
         tensorboard_log: Optional[str] = None,
         policy_kwargs: Optional[dict[str, Any]] = None,
+        use_barrier: bool = False,
+        barrier_lambda: float = 0.01,
+        barrier_learning_rate: float = 1e-3,
+        nu_learning_rate: float = 1e-3,
+        barrier_hidden_sizes: Sequence[int] = (128, 128),
+        barrier_temperature_indices: Optional[Sequence[int]] = None,
+        barrier_temperature_min: Optional[float] = None,
+        barrier_temperature_max: Optional[float] = None,
+        barrier_unnormalize_observations: bool = True,
         verbose: int = 0,
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
@@ -132,6 +143,25 @@ class RecurrentPPO(OnPolicyAlgorithm):
         self.normalize_advantage = normalize_advantage
         self.target_kl = target_kl
         self._last_lstm_states = None
+        self.use_barrier = use_barrier
+        if not 0.0 <= barrier_lambda <= 1.0:
+            raise ValueError("barrier_lambda must be in [0, 1].")
+        self.barrier_lambda = float(barrier_lambda)
+        self.barrier_learning_rate = barrier_learning_rate
+        self.nu_learning_rate = nu_learning_rate
+        self.barrier_hidden_sizes = tuple(barrier_hidden_sizes)
+        self.barrier_temperature_indices = (
+            list(barrier_temperature_indices)
+            if barrier_temperature_indices is not None
+            else None
+        )
+        self.barrier_temperature_min = barrier_temperature_min
+        self.barrier_temperature_max = barrier_temperature_max
+        self.barrier_unnormalize_observations = barrier_unnormalize_observations
+        self.barrier_net: Optional[BarrierNet] = None
+        self.barrier_optimizer: Optional[th.optim.Optimizer] = None
+        self.nu: Optional[th.nn.Parameter] = None
+        self.nu_optimizer: Optional[th.optim.Optimizer] = None
 
         if _init_setup_model:
             self._setup_model()
@@ -192,6 +222,125 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
             self.clip_range_vf = get_schedule_fn(self.clip_range_vf)
 
+        if self.use_barrier:
+            self._setup_barrier()
+
+    def _setup_barrier(self) -> None:
+        if not isinstance(self.observation_space, spaces.Box):
+            raise ValueError("Neural Barrier currently requires a Box observation space.")
+
+        input_dim = int(np.prod(self.observation_space.shape))
+        self.barrier_temperature_indices = self._resolve_barrier_temperature_indices(input_dim)
+        self.barrier_temperature_min, self.barrier_temperature_max = self._resolve_barrier_temperature_bounds()
+
+        self.barrier_net = BarrierNet(input_dim=input_dim, hidden_sizes=self.barrier_hidden_sizes).to(self.device)
+        self.barrier_optimizer = th.optim.Adam(self.barrier_net.parameters(), lr=self.barrier_learning_rate)
+        self.nu = th.nn.Parameter(th.tensor(1.0, dtype=th.float32, device=self.device))
+        self.nu_optimizer = th.optim.Adam([self.nu], lr=self.nu_learning_rate)
+
+    def _get_first_env_attr(self, attr_name: str) -> Any:
+        if self.env is None:
+            return None
+        try:
+            values = self.env.get_attr(attr_name)
+        except Exception:
+            return None
+        return values[0] if values else None
+
+    def _resolve_barrier_temperature_indices(self, input_dim: int) -> list[int]:
+        if self.barrier_temperature_indices is not None:
+            indices = [int(index) for index in self.barrier_temperature_indices]
+        else:
+            observation_variables = self._get_first_env_attr("observation_variables")
+            reward_fn = self._get_first_env_attr("reward_fn")
+            temp_names = getattr(reward_fn, "temp_names", None)
+
+            if observation_variables is not None and temp_names:
+                indices = [observation_variables.index(name) for name in temp_names]
+            elif observation_variables is not None:
+                indices = [
+                    idx
+                    for idx, name in enumerate(observation_variables)
+                    if "air_temperature" in str(name).lower()
+                ]
+            else:
+                indices = []
+
+        if not indices:
+            raise ValueError(
+                "Neural Barrier needs temperature indices. Pass barrier_temperature_indices "
+                "or use an environment exposing observation_variables/reward_fn.temp_names."
+            )
+        if min(indices) < 0 or max(indices) >= input_dim:
+            raise ValueError(f"Invalid barrier temperature indices for observation dim {input_dim}: {indices}")
+        return indices
+
+    def _resolve_barrier_temperature_bounds(self) -> tuple[float, float]:
+        if self.barrier_temperature_min is not None and self.barrier_temperature_max is not None:
+            return float(self.barrier_temperature_min), float(self.barrier_temperature_max)
+
+        reward_fn = self._get_first_env_attr("reward_fn")
+        comfort_range = getattr(reward_fn, "range_comfort_summer", None)
+        if comfort_range is None:
+            comfort_range = getattr(reward_fn, "range_comfort_winter", None)
+        if comfort_range is None:
+            raise ValueError(
+                "Neural Barrier needs comfort bounds. Pass barrier_temperature_min "
+                "and barrier_temperature_max explicitly."
+            )
+        return float(comfort_range[0]), float(comfort_range[1])
+
+    def _flatten_barrier_states(self, states: th.Tensor) -> th.Tensor:
+        if states.ndim > 2:
+            return th.flatten(states, start_dim=1)
+        return states
+
+    def _safety_label_states(self, states: th.Tensor) -> th.Tensor:
+        states = self._flatten_barrier_states(states)
+        if not self.barrier_unnormalize_observations:
+            return states
+
+        obs_rms = self._get_first_env_attr("obs_rms")
+        if obs_rms is None:
+            return states
+
+        mean = th.as_tensor(obs_rms.mean, device=states.device, dtype=states.dtype).view(1, -1)
+        var = th.as_tensor(obs_rms.var, device=states.device, dtype=states.dtype).view(1, -1)
+        if mean.shape[1] != states.shape[1] or var.shape[1] != states.shape[1]:
+            return states
+
+        epsilon = self._get_first_env_attr("epsilon")
+        epsilon = float(epsilon) if epsilon is not None else 1e-8
+        return states * th.sqrt(var + epsilon) + mean
+
+    def _temperature_safe_mask(self, states: th.Tensor) -> th.Tensor:
+        if self.barrier_temperature_indices is None:
+            raise RuntimeError("Barrier temperature indices were not initialized.")
+        label_states = self._safety_label_states(states)
+        indices = th.as_tensor(self.barrier_temperature_indices, device=states.device, dtype=th.long)
+        temperatures = label_states.index_select(dim=1, index=indices)
+        lower = float(self.barrier_temperature_min)
+        upper = float(self.barrier_temperature_max)
+        return th.logical_and(temperatures >= lower, temperatures <= upper).all(dim=1)
+
+    def _compute_barrier_losses(
+        self,
+        states: th.Tensor,
+        next_states: th.Tensor,
+    ) -> BarrierLosses:
+        if self.barrier_net is None:
+            raise RuntimeError("BarrierNet was not initialized.")
+        states = self._flatten_barrier_states(states)
+        next_states = self._flatten_barrier_states(next_states)
+        safe_mask = self._temperature_safe_mask(states)
+        return compute_barrier_losses(
+            self.barrier_net,
+            states,
+            next_states,
+            safe_mask=safe_mask,
+            lambda_param=self.barrier_lambda,
+        )
+
     def collect_rollouts(
         self,
         env: VecEnv,
@@ -250,6 +399,15 @@ class RecurrentPPO(OnPolicyAlgorithm):
                 clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
 
             new_obs, rewards, dones, infos = env.step(clipped_actions)
+            next_obs = deepcopy(new_obs)
+            for idx, done_ in enumerate(dones):
+                terminal_obs = infos[idx].get("terminal_observation")
+                if done_ and terminal_obs is not None:
+                    if isinstance(next_obs, dict):
+                        for key in next_obs.keys():
+                            next_obs[key][idx] = terminal_obs[key]
+                    else:
+                        next_obs[idx] = terminal_obs
 
             self.num_timesteps += env.num_envs
 
@@ -291,6 +449,7 @@ class RecurrentPPO(OnPolicyAlgorithm):
                 self._last_episode_starts,
                 values,
                 log_probs,
+                next_obs=next_obs,
                 lstm_states=self._last_lstm_states,
             )
 
@@ -325,7 +484,14 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
         entropy_losses = []
         pg_losses, value_losses = [], []
+        constrained_pg_losses = []
         clip_fractions = []
+        barrier_safe_losses = []
+        barrier_unsafe_losses = []
+        barrier_invariant_losses = []
+        barrier_total_losses = []
+        barrier_weighted_invariant_losses = []
+        nu_values = []
 
         continue_training = True
 
@@ -393,8 +559,6 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
                 entropy_losses.append(entropy_loss.item())
 
-                loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
-
                 # Calculate approximate form of reverse KL Divergence for early stopping
                 # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417
                 # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
@@ -409,6 +573,43 @@ class RecurrentPPO(OnPolicyAlgorithm):
                     if self.verbose >= 1:
                         print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
                     break
+
+                constrained_policy_loss = policy_loss
+                if self.use_barrier:
+                    if self.barrier_optimizer is None or self.nu_optimizer is None or self.nu is None:
+                        raise RuntimeError("Barrier optimizers were not initialized.")
+
+                    valid_states = rollout_data.observations[mask]
+                    valid_next_states = rollout_data.next_observations[mask]
+                    valid_ratio = ratio[mask]
+
+                    barrier_losses = self._compute_barrier_losses(valid_states, valid_next_states)
+                    self.barrier_optimizer.zero_grad()
+                    barrier_losses.total.backward()
+                    self.barrier_optimizer.step()
+
+                    weighted_invariant = th.mean(
+                        valid_ratio * barrier_losses.invariant_per_sample.detach()
+                    )
+
+                    self.nu_optimizer.zero_grad()
+                    loss_nu = -self.nu * weighted_invariant.detach()
+                    loss_nu.backward()
+                    self.nu_optimizer.step()
+                    with th.no_grad():
+                        self.nu.clamp_(min=0.0)
+
+                    constrained_policy_loss = policy_loss + self.nu.detach() * weighted_invariant
+
+                    barrier_safe_losses.append(barrier_losses.safe.item())
+                    barrier_unsafe_losses.append(barrier_losses.unsafe.item())
+                    barrier_invariant_losses.append(barrier_losses.invariant.item())
+                    barrier_total_losses.append(barrier_losses.total.item())
+                    barrier_weighted_invariant_losses.append(weighted_invariant.item())
+                    nu_values.append(self.nu.item())
+
+                constrained_pg_losses.append(constrained_policy_loss.item())
+                loss = constrained_policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
 
                 # Optimization step
                 self.policy.optimizer.zero_grad()
@@ -426,11 +627,19 @@ class RecurrentPPO(OnPolicyAlgorithm):
         # Logs
         self.logger.record("train/entropy_loss", np.mean(entropy_losses))
         self.logger.record("train/policy_gradient_loss", np.mean(pg_losses))
+        self.logger.record("train/constrained_policy_gradient_loss", np.mean(constrained_pg_losses))
         self.logger.record("train/value_loss", np.mean(value_losses))
         self.logger.record("train/approx_kl", np.mean(approx_kl_divs))
         self.logger.record("train/clip_fraction", np.mean(clip_fractions))
         self.logger.record("train/loss", loss.item())
         self.logger.record("train/explained_variance", explained_var)
+        if self.use_barrier:
+            self.logger.record("train/barrier_safe_loss", np.mean(barrier_safe_losses))
+            self.logger.record("train/barrier_unsafe_loss", np.mean(barrier_unsafe_losses))
+            self.logger.record("train/barrier_invariant_loss", np.mean(barrier_invariant_losses))
+            self.logger.record("train/barrier_total_loss", np.mean(barrier_total_losses))
+            self.logger.record("train/barrier_weighted_invariant_loss", np.mean(barrier_weighted_invariant_losses))
+            self.logger.record("train/barrier_nu", np.mean(nu_values))
         if hasattr(self.policy, "log_std"):
             self.logger.record("train/std", th.exp(self.policy.log_std).mean().item())
 
@@ -459,3 +668,10 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
     def _excluded_save_params(self) -> list[str]:
         return super()._excluded_save_params() + ["_last_lstm_states"]  # noqa: RUF005
+
+    def _get_torch_save_params(self) -> tuple[list[str], list[str]]:
+        state_dicts, torch_vars = super()._get_torch_save_params()
+        if self.use_barrier:
+            state_dicts = state_dicts + ["barrier_net", "barrier_optimizer", "nu_optimizer"]
+            torch_vars = torch_vars + ["nu"]
+        return state_dicts, torch_vars

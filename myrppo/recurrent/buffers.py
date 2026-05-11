@@ -128,15 +128,20 @@ class RecurrentRolloutBuffer(RolloutBuffer):
 
     def reset(self):
         super().reset()
+        self.next_observations = np.zeros_like(self.observations)
         self.hidden_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.hidden_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
 
-    def add(self, *args, lstm_states: RNNStates, **kwargs) -> None:
+    def add(self, *args, next_obs: np.ndarray, lstm_states: RNNStates, **kwargs) -> None:
         """
         :param hidden_states: LSTM cell and hidden state
         """
+        next_obs_ = np.array(next_obs)
+        if isinstance(self.observation_space, spaces.Discrete):
+            next_obs_ = next_obs_.reshape((self.n_envs, *self.obs_shape))
+        self.next_observations[self.pos] = next_obs_
         self.hidden_states_pi[self.pos] = np.array(lstm_states.pi[0].cpu().numpy())
         self.cell_states_pi[self.pos] = np.array(lstm_states.pi[1].cpu().numpy())
         self.hidden_states_vf[self.pos] = np.array(lstm_states.vf[0].cpu().numpy())
@@ -159,6 +164,7 @@ class RecurrentRolloutBuffer(RolloutBuffer):
             # 2. (n_envs, n_steps, *tensor_shape) -> (n_envs * n_steps, *tensor_shape)
             for tensor in [
                 "observations",
+                "next_observations",
                 "actions",
                 "values",
                 "log_probs",
@@ -231,6 +237,7 @@ class RecurrentRolloutBuffer(RolloutBuffer):
         return RecurrentRolloutBufferSamples(
             # (batch_size, obs_dim) -> (n_seq, max_length, obs_dim) -> (n_seq * max_length, obs_dim)
             observations=self.pad(self.observations[batch_inds]).reshape((padded_batch_size, *self.obs_shape)),
+            next_observations=self.pad(self.next_observations[batch_inds]).reshape((padded_batch_size, *self.obs_shape)),
             actions=self.pad(self.actions[batch_inds]).reshape((padded_batch_size,) + self.actions.shape[1:]),
             old_values=self.pad_and_flatten(self.values[batch_inds]),
             old_log_prob=self.pad_and_flatten(self.log_probs[batch_inds]),
@@ -275,15 +282,25 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
 
     def reset(self):
         super().reset()
+        self.next_observations = {
+            key: np.zeros_like(obs)
+            for key, obs in self.observations.items()
+        }
         self.hidden_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.hidden_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
 
-    def add(self, *args, lstm_states: RNNStates, **kwargs) -> None:
+    def add(self, *args, next_obs: dict[str, np.ndarray], lstm_states: RNNStates, **kwargs) -> None:
         """
         :param hidden_states: LSTM cell and hidden state
         """
+        for key in self.next_observations.keys():
+            next_obs_ = np.array(next_obs[key])
+            if isinstance(self.observation_space.spaces[key], spaces.Discrete):
+                next_obs_ = next_obs_.reshape((self.n_envs,) + self.obs_shape[key])
+            self.next_observations[key][self.pos] = next_obs_
+
         self.hidden_states_pi[self.pos] = np.array(lstm_states.pi[0].cpu().numpy())
         self.cell_states_pi[self.pos] = np.array(lstm_states.pi[1].cpu().numpy())
         self.hidden_states_vf[self.pos] = np.array(lstm_states.vf[0].cpu().numpy())
@@ -303,6 +320,8 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
 
             for key, obs in self.observations.items():
                 self.observations[key] = self.swap_and_flatten(obs)
+            for key, obs in self.next_observations.items():
+                self.next_observations[key] = self.swap_and_flatten(obs)
 
             for tensor in [
                 "actions",
@@ -371,9 +390,15 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
 
         observations = {key: self.pad(obs[batch_inds]) for (key, obs) in self.observations.items()}
         observations = {key: obs.reshape((padded_batch_size,) + self.obs_shape[key]) for (key, obs) in observations.items()}
+        next_observations = {key: self.pad(obs[batch_inds]) for (key, obs) in self.next_observations.items()}
+        next_observations = {
+            key: obs.reshape((padded_batch_size,) + self.obs_shape[key])
+            for (key, obs) in next_observations.items()
+        }
 
         return RecurrentDictRolloutBufferSamples(
             observations=observations,
+            next_observations=next_observations,
             actions=self.pad(self.actions[batch_inds]).reshape((padded_batch_size,) + self.actions.shape[1:]),
             old_values=self.pad_and_flatten(self.values[batch_inds]),
             old_log_prob=self.pad_and_flatten(self.log_probs[batch_inds]),
