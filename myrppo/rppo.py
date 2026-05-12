@@ -157,9 +157,9 @@ def main() -> None:
         "energy_variables": list(new_meters.keys()),
         "range_comfort_winter": (COMFORT_TEMPERATURE_MIN, COMFORT_TEMPERATURE_MAX),
         "range_comfort_summer": (COMFORT_TEMPERATURE_MIN, COMFORT_TEMPERATURE_MAX),
-        "energy_weight": 1.0,
-        "lambda_energy": 1,
-        "lambda_temperature": 0.0,
+        "energy_weight": 0.5,
+        "lambda_energy": 1e-6,
+        "lambda_temperature": 100,
     }
 
     environment = "Eplus-1-mixed-continuous-stochastic-v1"
