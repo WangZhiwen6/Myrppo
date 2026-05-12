@@ -164,7 +164,7 @@ def main() -> None:
 
 
     # 拓扑约束
-    TOPOLOGY_SMOOTHING_LAMBDA = 0.20
+    TOPOLOGY_SMOOTHING_LAMBDA = 0.8
     env = TopologyActionProjectionWrapper(
         env,
         zone_edges=THERMAL_ZONE_EDGES,
