@@ -5,7 +5,6 @@ from typing import Any, ClassVar, Optional, TypeVar, Union
 import numpy as np
 import torch as th
 from gymnasium import spaces
-from myrppo.barrier import BarrierLosses, BarrierNet, compute_barrier_losses
 from myrppo.common.buffers import RolloutBuffer
 from myrppo.common.callbacks import BaseCallback
 from myrppo.common.on_policy_algorithm import OnPolicyAlgorithm
@@ -13,6 +12,7 @@ from myrppo.common.policies import BasePolicy
 from myrppo.common.type_aliases import GymEnv, MaybeCallback, Schedule
 from myrppo.common.utils import explained_variance, get_schedule_fn, obs_as_tensor
 from myrppo.common.vec_env import VecEnv
+from myrppo.safety_critic import CostCritic
 
 from myrppo.recurrent.buffers import RecurrentDictRolloutBuffer, RecurrentRolloutBuffer
 from myrppo.recurrent.policies import RecurrentActorCriticPolicy
@@ -95,15 +95,16 @@ class RecurrentPPO(OnPolicyAlgorithm):
         stats_window_size: int = 100,
         tensorboard_log: Optional[str] = None,
         policy_kwargs: Optional[dict[str, Any]] = None,
-        use_barrier: bool = False,
-        barrier_lambda: float = 0.01,
-        barrier_learning_rate: float = 1e-3,
+        use_safety_critic: bool = False,
+        cost_critic_learning_rate: float = 1e-3,
         nu_learning_rate: float = 1e-3,
-        barrier_hidden_sizes: Sequence[int] = (128, 128),
-        barrier_temperature_indices: Optional[Sequence[int]] = None,
-        barrier_temperature_min: Optional[float] = None,
-        barrier_temperature_max: Optional[float] = None,
-        barrier_unnormalize_observations: bool = True,
+        cost_critic_hidden_sizes: Sequence[int] = (128, 128),
+        cost_temperature_indices: Optional[Sequence[int]] = None,
+        cost_temperature_min: Optional[float] = None,
+        cost_temperature_max: Optional[float] = None,
+        cost_unnormalize_observations: bool = True,
+        cost_limit: float = 0.0,
+        cost_violation_power: float = 2.0,
         verbose: int = 0,
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
@@ -143,23 +144,26 @@ class RecurrentPPO(OnPolicyAlgorithm):
         self.normalize_advantage = normalize_advantage
         self.target_kl = target_kl
         self._last_lstm_states = None
-        self.use_barrier = use_barrier
-        if not 0.0 <= barrier_lambda <= 1.0:
-            raise ValueError("barrier_lambda must be in [0, 1].")
-        self.barrier_lambda = float(barrier_lambda)
-        self.barrier_learning_rate = barrier_learning_rate
+        self.use_safety_critic = use_safety_critic
+        if cost_limit < 0.0:
+            raise ValueError("cost_limit must be non-negative.")
+        if cost_violation_power <= 0.0:
+            raise ValueError("cost_violation_power must be positive.")
+        self.cost_critic_learning_rate = cost_critic_learning_rate
         self.nu_learning_rate = nu_learning_rate
-        self.barrier_hidden_sizes = tuple(barrier_hidden_sizes)
-        self.barrier_temperature_indices = (
-            list(barrier_temperature_indices)
-            if barrier_temperature_indices is not None
+        self.cost_critic_hidden_sizes = tuple(cost_critic_hidden_sizes)
+        self.cost_temperature_indices = (
+            list(cost_temperature_indices)
+            if cost_temperature_indices is not None
             else None
         )
-        self.barrier_temperature_min = barrier_temperature_min
-        self.barrier_temperature_max = barrier_temperature_max
-        self.barrier_unnormalize_observations = barrier_unnormalize_observations
-        self.barrier_net: Optional[BarrierNet] = None
-        self.barrier_optimizer: Optional[th.optim.Optimizer] = None
+        self.cost_temperature_min = cost_temperature_min
+        self.cost_temperature_max = cost_temperature_max
+        self.cost_unnormalize_observations = cost_unnormalize_observations
+        self.cost_limit = float(cost_limit)
+        self.cost_violation_power = float(cost_violation_power)
+        self.cost_critic: Optional[CostCritic] = None
+        self.cost_critic_optimizer: Optional[th.optim.Optimizer] = None
         self.nu: Optional[th.nn.Parameter] = None
         self.nu_optimizer: Optional[th.optim.Optimizer] = None
 
@@ -222,19 +226,19 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
             self.clip_range_vf = get_schedule_fn(self.clip_range_vf)
 
-        if self.use_barrier:
-            self._setup_barrier()
+        if self.use_safety_critic:
+            self._setup_safety_critic()
 
-    def _setup_barrier(self) -> None:
+    def _setup_safety_critic(self) -> None:
         if not isinstance(self.observation_space, spaces.Box):
-            raise ValueError("Neural Barrier currently requires a Box observation space.")
+            raise ValueError("Safety Critic currently requires a Box observation space.")
 
         input_dim = int(np.prod(self.observation_space.shape))
-        self.barrier_temperature_indices = self._resolve_barrier_temperature_indices(input_dim)
-        self.barrier_temperature_min, self.barrier_temperature_max = self._resolve_barrier_temperature_bounds()
+        self.cost_temperature_indices = self._resolve_cost_temperature_indices(input_dim)
+        self.cost_temperature_min, self.cost_temperature_max = self._resolve_cost_temperature_bounds()
 
-        self.barrier_net = BarrierNet(input_dim=input_dim, hidden_sizes=self.barrier_hidden_sizes).to(self.device)
-        self.barrier_optimizer = th.optim.Adam(self.barrier_net.parameters(), lr=self.barrier_learning_rate)
+        self.cost_critic = CostCritic(input_dim=input_dim, hidden_sizes=self.cost_critic_hidden_sizes).to(self.device)
+        self.cost_critic_optimizer = th.optim.Adam(self.cost_critic.parameters(), lr=self.cost_critic_learning_rate)
         self.nu = th.nn.Parameter(th.tensor(1.0, dtype=th.float32, device=self.device))
         self.nu_optimizer = th.optim.Adam([self.nu], lr=self.nu_learning_rate)
 
@@ -247,9 +251,9 @@ class RecurrentPPO(OnPolicyAlgorithm):
             return None
         return values[0] if values else None
 
-    def _resolve_barrier_temperature_indices(self, input_dim: int) -> list[int]:
-        if self.barrier_temperature_indices is not None:
-            indices = [int(index) for index in self.barrier_temperature_indices]
+    def _resolve_cost_temperature_indices(self, input_dim: int) -> list[int]:
+        if self.cost_temperature_indices is not None:
+            indices = [int(index) for index in self.cost_temperature_indices]
         else:
             observation_variables = self._get_first_env_attr("observation_variables")
             reward_fn = self._get_first_env_attr("reward_fn")
@@ -268,16 +272,16 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
         if not indices:
             raise ValueError(
-                "Neural Barrier needs temperature indices. Pass barrier_temperature_indices "
+                "Safety Critic needs temperature indices. Pass cost_temperature_indices "
                 "or use an environment exposing observation_variables/reward_fn.temp_names."
             )
         if min(indices) < 0 or max(indices) >= input_dim:
-            raise ValueError(f"Invalid barrier temperature indices for observation dim {input_dim}: {indices}")
+            raise ValueError(f"Invalid cost temperature indices for observation dim {input_dim}: {indices}")
         return indices
 
-    def _resolve_barrier_temperature_bounds(self) -> tuple[float, float]:
-        if self.barrier_temperature_min is not None and self.barrier_temperature_max is not None:
-            return float(self.barrier_temperature_min), float(self.barrier_temperature_max)
+    def _resolve_cost_temperature_bounds(self) -> tuple[float, float]:
+        if self.cost_temperature_min is not None and self.cost_temperature_max is not None:
+            return float(self.cost_temperature_min), float(self.cost_temperature_max)
 
         reward_fn = self._get_first_env_attr("reward_fn")
         comfort_range = getattr(reward_fn, "range_comfort_summer", None)
@@ -285,19 +289,19 @@ class RecurrentPPO(OnPolicyAlgorithm):
             comfort_range = getattr(reward_fn, "range_comfort_winter", None)
         if comfort_range is None:
             raise ValueError(
-                "Neural Barrier needs comfort bounds. Pass barrier_temperature_min "
-                "and barrier_temperature_max explicitly."
+                "Safety Critic needs comfort bounds. Pass cost_temperature_min "
+                "and cost_temperature_max explicitly."
             )
         return float(comfort_range[0]), float(comfort_range[1])
 
-    def _flatten_barrier_states(self, states: th.Tensor) -> th.Tensor:
+    def _flatten_cost_states(self, states: th.Tensor) -> th.Tensor:
         if states.ndim > 2:
             return th.flatten(states, start_dim=1)
         return states
 
-    def _safety_label_states(self, states: th.Tensor) -> th.Tensor:
-        states = self._flatten_barrier_states(states)
-        if not self.barrier_unnormalize_observations:
+    def _cost_label_states(self, states: th.Tensor) -> th.Tensor:
+        states = self._flatten_cost_states(states)
+        if not self.cost_unnormalize_observations:
             return states
 
         obs_rms = self._get_first_env_attr("obs_rms")
@@ -313,33 +317,25 @@ class RecurrentPPO(OnPolicyAlgorithm):
         epsilon = float(epsilon) if epsilon is not None else 1e-8
         return states * th.sqrt(var + epsilon) + mean
 
-    def _temperature_safe_mask(self, states: th.Tensor) -> th.Tensor:
-        if self.barrier_temperature_indices is None:
-            raise RuntimeError("Barrier temperature indices were not initialized.")
-        label_states = self._safety_label_states(states)
-        indices = th.as_tensor(self.barrier_temperature_indices, device=states.device, dtype=th.long)
+    def _temperature_violation_cost(self, states: th.Tensor) -> th.Tensor:
+        if self.cost_temperature_indices is None:
+            raise RuntimeError("Cost temperature indices were not initialized.")
+        label_states = self._cost_label_states(states)
+        indices = th.as_tensor(self.cost_temperature_indices, device=states.device, dtype=th.long)
         temperatures = label_states.index_select(dim=1, index=indices)
-        lower = float(self.barrier_temperature_min)
-        upper = float(self.barrier_temperature_max)
-        return th.logical_and(temperatures >= lower, temperatures <= upper).all(dim=1)
+        lower = th.as_tensor(float(self.cost_temperature_min), device=states.device, dtype=states.dtype)
+        upper = th.as_tensor(float(self.cost_temperature_max), device=states.device, dtype=states.dtype)
+        violation = th.relu(lower - temperatures) + th.relu(temperatures - upper)
+        if self.cost_violation_power != 1.0:
+            violation = violation.pow(self.cost_violation_power)
+        return violation.sum(dim=1)
 
-    def _compute_barrier_losses(
-        self,
-        states: th.Tensor,
-        next_states: th.Tensor,
-    ) -> BarrierLosses:
-        if self.barrier_net is None:
-            raise RuntimeError("BarrierNet was not initialized.")
-        states = self._flatten_barrier_states(states)
-        next_states = self._flatten_barrier_states(next_states)
-        safe_mask = self._temperature_safe_mask(states)
-        return compute_barrier_losses(
-            self.barrier_net,
-            states,
-            next_states,
-            safe_mask=safe_mask,
-            lambda_param=self.barrier_lambda,
-        )
+    def _predict_cost_values(self, states: th.Tensor) -> th.Tensor:
+        if self.cost_critic is None:
+            return th.zeros(states.shape[0], device=self.device, dtype=th.float32)
+        critic_param = next(self.cost_critic.parameters())
+        states = self._flatten_cost_states(states).to(device=critic_param.device, dtype=critic_param.dtype)
+        return self.cost_critic(states).flatten()
 
     def collect_rollouts(
         self,
@@ -389,6 +385,10 @@ class RecurrentPPO(OnPolicyAlgorithm):
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
                 episode_starts = th.tensor(self._last_episode_starts, dtype=th.float32, device=self.device)
                 actions, values, log_probs, lstm_states = self.policy.forward(obs_tensor, lstm_states, episode_starts)
+                if self.use_safety_critic:
+                    cost_values = self._predict_cost_values(obs_tensor)
+                else:
+                    cost_values = th.zeros(env.num_envs, device=self.device, dtype=th.float32)
 
             actions = actions.cpu().numpy()
 
@@ -408,6 +408,12 @@ class RecurrentPPO(OnPolicyAlgorithm):
                             next_obs[key][idx] = terminal_obs[key]
                     else:
                         next_obs[idx] = terminal_obs
+
+            if self.use_safety_critic:
+                with th.no_grad():
+                    costs = self._temperature_violation_cost(obs_as_tensor(next_obs, self.device)).cpu().numpy()
+            else:
+                costs = np.zeros(env.num_envs, dtype=np.float32)
 
             self.num_timesteps += env.num_envs
 
@@ -441,6 +447,10 @@ class RecurrentPPO(OnPolicyAlgorithm):
                         episode_starts = th.tensor([False], dtype=th.float32, device=self.device)
                         terminal_value = self.policy.predict_values(terminal_obs, terminal_lstm_state, episode_starts)[0]
                     rewards[idx] += self.gamma * terminal_value
+                    if self.use_safety_critic:
+                        with th.no_grad():
+                            terminal_cost_value = self._predict_cost_values(terminal_obs)[0]
+                        costs[idx] += self.gamma * terminal_cost_value.cpu().numpy()
 
             rollout_buffer.add(
                 self._last_obs,
@@ -450,6 +460,8 @@ class RecurrentPPO(OnPolicyAlgorithm):
                 values,
                 log_probs,
                 next_obs=next_obs,
+                cost=costs,
+                cost_value=cost_values,
                 lstm_states=self._last_lstm_states,
             )
 
@@ -460,9 +472,15 @@ class RecurrentPPO(OnPolicyAlgorithm):
         with th.no_grad():
             # Compute value for the last timestep
             episode_starts = th.tensor(dones, dtype=th.float32, device=self.device)
-            values = self.policy.predict_values(obs_as_tensor(new_obs, self.device), lstm_states.vf, episode_starts)
+            last_obs_tensor = obs_as_tensor(new_obs, self.device)
+            values = self.policy.predict_values(last_obs_tensor, lstm_states.vf, episode_starts)
+            if self.use_safety_critic:
+                cost_values = self._predict_cost_values(last_obs_tensor)
+            else:
+                cost_values = th.zeros(env.num_envs, device=self.device, dtype=th.float32)
 
         rollout_buffer.compute_returns_and_advantage(last_values=values, dones=dones)
+        rollout_buffer.compute_cost_returns_and_advantage(last_cost_values=cost_values, dones=dones)
 
         callback.on_rollout_end()
 
@@ -486,11 +504,10 @@ class RecurrentPPO(OnPolicyAlgorithm):
         pg_losses, value_losses = [], []
         constrained_pg_losses = []
         clip_fractions = []
-        barrier_safe_losses = []
-        barrier_unsafe_losses = []
-        barrier_invariant_losses = []
-        barrier_total_losses = []
-        barrier_weighted_invariant_losses = []
+        cost_policy_losses = []
+        cost_value_losses = []
+        mean_costs = []
+        cost_constraint_violations = []
         nu_values = []
 
         continue_training = True
@@ -575,37 +592,37 @@ class RecurrentPPO(OnPolicyAlgorithm):
                     break
 
                 constrained_policy_loss = policy_loss
-                if self.use_barrier:
-                    if self.barrier_optimizer is None or self.nu_optimizer is None or self.nu is None:
-                        raise RuntimeError("Barrier optimizers were not initialized.")
+                if self.use_safety_critic:
+                    if self.cost_critic is None or self.cost_critic_optimizer is None or self.nu_optimizer is None or self.nu is None:
+                        raise RuntimeError("Safety Critic optimizers were not initialized.")
 
-                    valid_states = rollout_data.observations[mask]
-                    valid_next_states = rollout_data.next_observations[mask]
                     valid_ratio = ratio[mask]
+                    valid_cost_advantages = rollout_data.cost_advantages[mask]
+                    cost_policy_loss = th.mean(valid_ratio * valid_cost_advantages)
 
-                    barrier_losses = self._compute_barrier_losses(valid_states, valid_next_states)
-                    self.barrier_optimizer.zero_grad()
-                    barrier_losses.total.backward()
-                    self.barrier_optimizer.step()
+                    cost_values = self._predict_cost_values(rollout_data.observations)
+                    cost_value_loss = th.mean(((rollout_data.cost_returns - cost_values) ** 2)[mask])
 
-                    weighted_invariant = th.mean(
-                        valid_ratio * barrier_losses.invariant_per_sample.detach()
-                    )
+                    self.cost_critic_optimizer.zero_grad()
+                    cost_value_loss.backward()
+                    th.nn.utils.clip_grad_norm_(self.cost_critic.parameters(), self.max_grad_norm)
+                    self.cost_critic_optimizer.step()
 
+                    mean_cost = th.mean(rollout_data.costs[mask])
+                    cost_constraint_violation = mean_cost - self.cost_limit
                     self.nu_optimizer.zero_grad()
-                    loss_nu = -self.nu * weighted_invariant.detach()
+                    loss_nu = -self.nu * cost_constraint_violation.detach()
                     loss_nu.backward()
                     self.nu_optimizer.step()
                     with th.no_grad():
                         self.nu.clamp_(min=0.0)
 
-                    constrained_policy_loss = policy_loss + self.nu.detach() * weighted_invariant
+                    constrained_policy_loss = policy_loss + self.nu.detach() * cost_policy_loss
 
-                    barrier_safe_losses.append(barrier_losses.safe.item())
-                    barrier_unsafe_losses.append(barrier_losses.unsafe.item())
-                    barrier_invariant_losses.append(barrier_losses.invariant.item())
-                    barrier_total_losses.append(barrier_losses.total.item())
-                    barrier_weighted_invariant_losses.append(weighted_invariant.item())
+                    cost_policy_losses.append(cost_policy_loss.item())
+                    cost_value_losses.append(cost_value_loss.item())
+                    mean_costs.append(mean_cost.item())
+                    cost_constraint_violations.append(cost_constraint_violation.item())
                     nu_values.append(self.nu.item())
 
                 constrained_pg_losses.append(constrained_policy_loss.item())
@@ -633,13 +650,12 @@ class RecurrentPPO(OnPolicyAlgorithm):
         self.logger.record("train/clip_fraction", np.mean(clip_fractions))
         self.logger.record("train/loss", loss.item())
         self.logger.record("train/explained_variance", explained_var)
-        if self.use_barrier:
-            self.logger.record("train/barrier_safe_loss", np.mean(barrier_safe_losses))
-            self.logger.record("train/barrier_unsafe_loss", np.mean(barrier_unsafe_losses))
-            self.logger.record("train/barrier_invariant_loss", np.mean(barrier_invariant_losses))
-            self.logger.record("train/barrier_total_loss", np.mean(barrier_total_losses))
-            self.logger.record("train/barrier_weighted_invariant_loss", np.mean(barrier_weighted_invariant_losses))
-            self.logger.record("train/barrier_nu", np.mean(nu_values))
+        if self.use_safety_critic:
+            self.logger.record("train/cost_policy_loss", np.mean(cost_policy_losses))
+            self.logger.record("train/cost_value_loss", np.mean(cost_value_losses))
+            self.logger.record("train/thermal_violation_cost", np.mean(mean_costs))
+            self.logger.record("train/cost_constraint_violation", np.mean(cost_constraint_violations))
+            self.logger.record("train/safety_nu", np.mean(nu_values))
         if hasattr(self.policy, "log_std"):
             self.logger.record("train/std", th.exp(self.policy.log_std).mean().item())
 
@@ -671,7 +687,7 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
     def _get_torch_save_params(self) -> tuple[list[str], list[str]]:
         state_dicts, torch_vars = super()._get_torch_save_params()
-        if self.use_barrier:
-            state_dicts = state_dicts + ["barrier_net", "barrier_optimizer", "nu_optimizer"]
+        if self.use_safety_critic:
+            state_dicts = state_dicts + ["cost_critic", "cost_critic_optimizer", "nu_optimizer"]
             torch_vars = torch_vars + ["nu"]
         return state_dicts, torch_vars

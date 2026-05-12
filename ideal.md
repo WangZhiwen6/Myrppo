@@ -56,12 +56,6 @@ District cooling system control for providing regulation services based on safe 
 为克服传统DRL的安全问题，我们提出将控制障碍功能（CBF）控制器与传统强化学习结合，形成一种新型安全RL控制器，确保每一步都实现约束安全。
 
 
-**安全动作是通过RL和CBF构造的一个二次规划问题输出，安全约束（舒适违规）也得放进RL控制器的reward函数里**
-
-如果 Actor 给出的动作会导致下一步室温越界（超出舒适范围），那么 shield 不允许它直接执行，而是把动作投影到最近的可行边界。真正送入环境执行的是 shield 后的动作，不是 actor 原始动作
-
-
-
 # 把“平铺动作”改成“结构化动作生成”
 同样输出每个区的连续设定点，但内部不是一次性直接回归 112 维，而是做 全局决策 + 分区修正，或者 共享 zone policy + 每区参数共享 head。
 这类创新点很好写，因为你没改 action，只是改了 policy parameterization，核心故事是“提升高维连续控制的可扩展性和 credit assignment”
@@ -100,8 +94,6 @@ heating <= cooling - delta
 结构化动作生成：
 PPO+LSTM的平铺动作输出被改造成拓扑约束的结构化动作生成。
 
-安全层：
-加入二次规划安全层（动作输出）
 
 # 启发式算法
 

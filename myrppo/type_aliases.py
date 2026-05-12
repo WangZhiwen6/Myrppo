@@ -14,9 +14,13 @@ class RecurrentRolloutBufferSamples(NamedTuple):
     next_observations: th.Tensor
     actions: th.Tensor
     old_values: th.Tensor
+    old_cost_values: th.Tensor
     old_log_prob: th.Tensor
     advantages: th.Tensor
+    cost_advantages: th.Tensor
     returns: th.Tensor
+    cost_returns: th.Tensor
+    costs: th.Tensor
     lstm_states: RNNStates
     episode_starts: th.Tensor
     mask: th.Tensor
@@ -27,9 +31,13 @@ class RecurrentDictRolloutBufferSamples(NamedTuple):
     next_observations: TensorDict
     actions: th.Tensor
     old_values: th.Tensor
+    old_cost_values: th.Tensor
     old_log_prob: th.Tensor
     advantages: th.Tensor
+    cost_advantages: th.Tensor
     returns: th.Tensor
+    cost_returns: th.Tensor
+    costs: th.Tensor
     lstm_states: RNNStates
     episode_starts: th.Tensor
     mask: th.Tensor

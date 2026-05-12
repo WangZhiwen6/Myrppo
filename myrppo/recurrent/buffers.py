@@ -129,12 +129,24 @@ class RecurrentRolloutBuffer(RolloutBuffer):
     def reset(self):
         super().reset()
         self.next_observations = np.zeros_like(self.observations)
+        self.costs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.hidden_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.hidden_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
 
-    def add(self, *args, next_obs: np.ndarray, lstm_states: RNNStates, **kwargs) -> None:
+    def add(
+        self,
+        *args,
+        next_obs: np.ndarray,
+        cost: np.ndarray,
+        cost_value: th.Tensor,
+        lstm_states: RNNStates,
+        **kwargs,
+    ) -> None:
         """
         :param hidden_states: LSTM cell and hidden state
         """
@@ -142,12 +154,30 @@ class RecurrentRolloutBuffer(RolloutBuffer):
         if isinstance(self.observation_space, spaces.Discrete):
             next_obs_ = next_obs_.reshape((self.n_envs, *self.obs_shape))
         self.next_observations[self.pos] = next_obs_
+        self.costs[self.pos] = np.array(cost)
+        self.cost_values[self.pos] = cost_value.clone().cpu().numpy().flatten()
         self.hidden_states_pi[self.pos] = np.array(lstm_states.pi[0].cpu().numpy())
         self.cell_states_pi[self.pos] = np.array(lstm_states.pi[1].cpu().numpy())
         self.hidden_states_vf[self.pos] = np.array(lstm_states.vf[0].cpu().numpy())
         self.cell_states_vf[self.pos] = np.array(lstm_states.vf[1].cpu().numpy())
 
         super().add(*args, **kwargs)
+
+    def compute_cost_returns_and_advantage(self, last_cost_values: th.Tensor, dones: np.ndarray) -> None:
+        last_cost_values = last_cost_values.clone().cpu().numpy().flatten()
+
+        last_cost_gae_lam = 0
+        for step in reversed(range(self.buffer_size)):
+            if step == self.buffer_size - 1:
+                next_non_terminal = 1.0 - dones.astype(np.float32)
+                next_cost_values = last_cost_values
+            else:
+                next_non_terminal = 1.0 - self.episode_starts[step + 1]
+                next_cost_values = self.cost_values[step + 1]
+            delta = self.costs[step] + self.gamma * next_cost_values * next_non_terminal - self.cost_values[step]
+            last_cost_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_cost_gae_lam
+            self.cost_advantages[step] = last_cost_gae_lam
+        self.cost_returns = self.cost_advantages + self.cost_values
 
     def get(self, batch_size: Optional[int] = None) -> Generator[RecurrentRolloutBufferSamples, None, None]:
         assert self.full, "Rollout buffer must be full before sampling from it"
@@ -167,9 +197,13 @@ class RecurrentRolloutBuffer(RolloutBuffer):
                 "next_observations",
                 "actions",
                 "values",
+                "cost_values",
                 "log_probs",
                 "advantages",
+                "cost_advantages",
                 "returns",
+                "cost_returns",
+                "costs",
                 "hidden_states_pi",
                 "cell_states_pi",
                 "hidden_states_vf",
@@ -240,9 +274,13 @@ class RecurrentRolloutBuffer(RolloutBuffer):
             next_observations=self.pad(self.next_observations[batch_inds]).reshape((padded_batch_size, *self.obs_shape)),
             actions=self.pad(self.actions[batch_inds]).reshape((padded_batch_size,) + self.actions.shape[1:]),
             old_values=self.pad_and_flatten(self.values[batch_inds]),
+            old_cost_values=self.pad_and_flatten(self.cost_values[batch_inds]),
             old_log_prob=self.pad_and_flatten(self.log_probs[batch_inds]),
             advantages=self.pad_and_flatten(self.advantages[batch_inds]),
+            cost_advantages=self.pad_and_flatten(self.cost_advantages[batch_inds]),
             returns=self.pad_and_flatten(self.returns[batch_inds]),
+            cost_returns=self.pad_and_flatten(self.cost_returns[batch_inds]),
+            costs=self.pad_and_flatten(self.costs[batch_inds]),
             lstm_states=RNNStates(lstm_states_pi, lstm_states_vf),
             episode_starts=self.pad_and_flatten(self.episode_starts[batch_inds]),
             mask=self.pad_and_flatten(np.ones_like(self.returns[batch_inds])),
@@ -286,12 +324,24 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
             key: np.zeros_like(obs)
             for key, obs in self.observations.items()
         }
+        self.costs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_values = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.cost_advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.hidden_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_pi = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.hidden_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
         self.cell_states_vf = np.zeros(self.hidden_state_shape, dtype=np.float32)
 
-    def add(self, *args, next_obs: dict[str, np.ndarray], lstm_states: RNNStates, **kwargs) -> None:
+    def add(
+        self,
+        *args,
+        next_obs: dict[str, np.ndarray],
+        cost: np.ndarray,
+        cost_value: th.Tensor,
+        lstm_states: RNNStates,
+        **kwargs,
+    ) -> None:
         """
         :param hidden_states: LSTM cell and hidden state
         """
@@ -301,12 +351,30 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
                 next_obs_ = next_obs_.reshape((self.n_envs,) + self.obs_shape[key])
             self.next_observations[key][self.pos] = next_obs_
 
+        self.costs[self.pos] = np.array(cost)
+        self.cost_values[self.pos] = cost_value.clone().cpu().numpy().flatten()
         self.hidden_states_pi[self.pos] = np.array(lstm_states.pi[0].cpu().numpy())
         self.cell_states_pi[self.pos] = np.array(lstm_states.pi[1].cpu().numpy())
         self.hidden_states_vf[self.pos] = np.array(lstm_states.vf[0].cpu().numpy())
         self.cell_states_vf[self.pos] = np.array(lstm_states.vf[1].cpu().numpy())
 
         super().add(*args, **kwargs)
+
+    def compute_cost_returns_and_advantage(self, last_cost_values: th.Tensor, dones: np.ndarray) -> None:
+        last_cost_values = last_cost_values.clone().cpu().numpy().flatten()
+
+        last_cost_gae_lam = 0
+        for step in reversed(range(self.buffer_size)):
+            if step == self.buffer_size - 1:
+                next_non_terminal = 1.0 - dones.astype(np.float32)
+                next_cost_values = last_cost_values
+            else:
+                next_non_terminal = 1.0 - self.episode_starts[step + 1]
+                next_cost_values = self.cost_values[step + 1]
+            delta = self.costs[step] + self.gamma * next_cost_values * next_non_terminal - self.cost_values[step]
+            last_cost_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_cost_gae_lam
+            self.cost_advantages[step] = last_cost_gae_lam
+        self.cost_returns = self.cost_advantages + self.cost_values
 
     def get(self, batch_size: Optional[int] = None) -> Generator[RecurrentDictRolloutBufferSamples, None, None]:
         assert self.full, "Rollout buffer must be full before sampling from it"
@@ -326,9 +394,13 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
             for tensor in [
                 "actions",
                 "values",
+                "cost_values",
                 "log_probs",
                 "advantages",
+                "cost_advantages",
                 "returns",
+                "cost_returns",
+                "costs",
                 "hidden_states_pi",
                 "cell_states_pi",
                 "hidden_states_vf",
@@ -401,9 +473,13 @@ class RecurrentDictRolloutBuffer(DictRolloutBuffer):
             next_observations=next_observations,
             actions=self.pad(self.actions[batch_inds]).reshape((padded_batch_size,) + self.actions.shape[1:]),
             old_values=self.pad_and_flatten(self.values[batch_inds]),
+            old_cost_values=self.pad_and_flatten(self.cost_values[batch_inds]),
             old_log_prob=self.pad_and_flatten(self.log_probs[batch_inds]),
             advantages=self.pad_and_flatten(self.advantages[batch_inds]),
+            cost_advantages=self.pad_and_flatten(self.cost_advantages[batch_inds]),
             returns=self.pad_and_flatten(self.returns[batch_inds]),
+            cost_returns=self.pad_and_flatten(self.cost_returns[batch_inds]),
+            costs=self.pad_and_flatten(self.costs[batch_inds]),
             lstm_states=RNNStates(lstm_states_pi, lstm_states_vf),
             episode_starts=self.pad_and_flatten(self.episode_starts[batch_inds]),
             mask=self.pad_and_flatten(np.ones_like(self.returns[batch_inds])),
