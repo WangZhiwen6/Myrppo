@@ -46,6 +46,7 @@ from mygym.utils.rewards import *
 from mygym.utils.wrappers import *
 
 from myrppo.common.callbacks import CallbackList
+from myrppo.common.logger import configure
 from myrppo.common.logger import HumanOutputFormat
 from myrppo.common.logger import Logger as SB3Logger
 from myrppo.ppo_recurrent import RecurrentPPO
@@ -157,12 +158,12 @@ def main() -> None:
         "range_comfort_winter": (COMFORT_TEMPERATURE_MIN, COMFORT_TEMPERATURE_MAX),
         "range_comfort_summer": (COMFORT_TEMPERATURE_MIN, COMFORT_TEMPERATURE_MAX),
         "energy_weight": 1.0,
-        "lambda_energy": 1e-6,
+        "lambda_energy": 1,
         "lambda_temperature": 0.0,
     }
 
     environment = "Eplus-1-mixed-continuous-stochastic-v1"
-    episodes = 20
+    episodes = 50
     experiment_date = datetime.today().strftime("%Y-%m-%d-%H_%M")
     experiment_name = f"RPPO-{environment}-episodes-{episodes}_{experiment_date}"
 
@@ -200,20 +201,32 @@ def main() -> None:
     model = RecurrentPPO(
         "MlpLstmPolicy",
         env,
+        learning_rate=2e-4,
         batch_size=256,
-        n_steps=2048,
+        n_steps=1024,
+        n_epochs=8,
+        clip_range=0.1,
+        target_kl=0.05,
         verbose=1,
         use_safety_critic=True,
         cost_critic_learning_rate=3e-4,
         nu_learning_rate=3e-4,
         cost_temperature_min=COMFORT_TEMPERATURE_MIN,
         cost_temperature_max=COMFORT_TEMPERATURE_MAX,
-        cost_limit=0.0,
-        cost_violation_power=2.0,
-        policy_kwargs=dict(lstm_hidden_size=256, 
-                           n_lstm_layers=3,
+        cost_limit=0.05,
+        cost_violation_power=1.0,
+        policy_kwargs=dict(lstm_hidden_size=128,
+                           n_lstm_layers=1,
                            shared_lstm=False,
-                           enable_critic_lstm=True,),
+                           enable_critic_lstm=True,
+                           log_std_init=-1.5,
+                           net_arch=dict(pi=[128], vf=[128]),),
+    )
+    model.set_logger(
+        configure(
+            folder=os.path.join(env.get_wrapper_attr("workspace_path"), "training_logs"),
+            format_strings=["stdout", "csv"],
+        )
     )
 
     callbacks = []
@@ -226,7 +239,7 @@ def main() -> None:
     # callbacks.append(LoggerCallback())
     callback = CallbackList(callbacks)
 
-    model.learn(total_timesteps=timesteps, callback=callback, log_interval=100)
+    model.learn(total_timesteps=timesteps, callback=callback, log_interval=1)
 
     model.save(f"{env.get_wrapper_attr('timestep_per_episode')}/{experiment_name}")
 

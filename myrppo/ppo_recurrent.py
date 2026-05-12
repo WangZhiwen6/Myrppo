@@ -328,7 +328,7 @@ class RecurrentPPO(OnPolicyAlgorithm):
         violation = th.relu(lower - temperatures) + th.relu(temperatures - upper)
         if self.cost_violation_power != 1.0:
             violation = violation.pow(self.cost_violation_power)
-        return violation.sum(dim=1)
+        return violation.mean(dim=1)
 
     def _predict_cost_values(self, states: th.Tensor) -> th.Tensor:
         if self.cost_critic is None:
@@ -506,6 +506,7 @@ class RecurrentPPO(OnPolicyAlgorithm):
         clip_fractions = []
         cost_policy_losses = []
         cost_value_losses = []
+        cost_return_means = []
         mean_costs = []
         cost_constraint_violations = []
         nu_values = []
@@ -596,9 +597,13 @@ class RecurrentPPO(OnPolicyAlgorithm):
                     if self.cost_critic is None or self.cost_critic_optimizer is None or self.nu_optimizer is None or self.nu is None:
                         raise RuntimeError("Safety Critic optimizers were not initialized.")
 
-                    valid_ratio = ratio[mask]
-                    valid_cost_advantages = rollout_data.cost_advantages[mask]
-                    cost_policy_loss = th.mean(valid_ratio * valid_cost_advantages)
+                    cost_signal = rollout_data.cost_returns.detach()
+                    cost_scale = cost_signal[mask].abs().mean().detach().clamp_min(1e-8)
+                    cost_signal = cost_signal / cost_scale
+
+                    cost_loss_1 = ratio * cost_signal
+                    cost_loss_2 = th.clamp(ratio, 1 - clip_range, 1 + clip_range) * cost_signal
+                    cost_policy_loss = th.mean(th.max(cost_loss_1, cost_loss_2)[mask])
 
                     cost_values = self._predict_cost_values(rollout_data.observations)
                     cost_value_loss = th.mean(((rollout_data.cost_returns - cost_values) ** 2)[mask])
@@ -621,6 +626,7 @@ class RecurrentPPO(OnPolicyAlgorithm):
 
                     cost_policy_losses.append(cost_policy_loss.item())
                     cost_value_losses.append(cost_value_loss.item())
+                    cost_return_means.append(rollout_data.cost_returns[mask].mean().item())
                     mean_costs.append(mean_cost.item())
                     cost_constraint_violations.append(cost_constraint_violation.item())
                     nu_values.append(self.nu.item())
@@ -653,6 +659,7 @@ class RecurrentPPO(OnPolicyAlgorithm):
         if self.use_safety_critic:
             self.logger.record("train/cost_policy_loss", np.mean(cost_policy_losses))
             self.logger.record("train/cost_value_loss", np.mean(cost_value_losses))
+            self.logger.record("train/cost_return_mean", np.mean(cost_return_means))
             self.logger.record("train/thermal_violation_cost", np.mean(mean_costs))
             self.logger.record("train/cost_constraint_violation", np.mean(cost_constraint_violations))
             self.logger.record("train/safety_nu", np.mean(nu_values))
